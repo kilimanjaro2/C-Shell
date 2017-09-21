@@ -15,6 +15,8 @@
 int exit_shell = 0;
 char* home_dir = NULL;
 
+
+
 extern int errno;
 
 void printPrompt();
@@ -22,7 +24,8 @@ void printDirectory();
 
 void printError()
 {
-    fprintf(stderr, "Exit: %s\n", strerror(errno));
+    printf("Exit: %s\n", strerror(errno));
+    //fprintf(stderr, "Exit: %s\n", strerror(errno));
     exit(EXIT_FAILURE);
 }
 
@@ -67,10 +70,8 @@ void runShell()
             {
                 free(commands[i][j-1]);
                 commands[i][j-1] = NULL;
-
                 bg = 1;
             }
-
             executeCommand(commands[i], bg);
         }
 
@@ -83,7 +84,8 @@ void runShell()
         free(commands);
 
         if(exit_shell)
-            break;
+			     printError();
+            //break;
     }
 }
 
