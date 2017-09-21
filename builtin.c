@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <signal.h>
 #include <string.h>
 #include "builtin.h"
 #include "shell.h"
@@ -10,6 +11,7 @@
 #include <time.h>
 #include <pwd.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 #define DEF "\x1B[0m"
 // #define for_each_process(p) for(p = &init_task ; (p = next_task(p)) != &init_task ;);
@@ -21,7 +23,13 @@ char *builtin_str[] =
 	"echo",
 	"pinfo",
 	"ls",
-  "nightswatch"
+  "nightswatch",
+	"setenv",
+	"unsetenv",
+	"jobs",
+	"overkill",
+	"fg",
+	//"kjobs",
 };
 
 
@@ -32,7 +40,13 @@ void (*builtin_func[]) (char**) =
 	&builtin_echo,
 	&builtin_pinfo,
 	&builtin_ls,
-  &builtin_nightswatch
+  &builtin_nightswatch,
+	&builtin_setenv,
+	&builtin_unsetenv,
+	&builtin_jobs,
+	&builtin_overkill,
+	&builtin_fg,
+	//builtin_kjobs
 };
 
 int num_builtins()
@@ -227,4 +241,76 @@ void builtin_pinfo(char** arguments)
 		}
 		printf("Executable Path -- %s\n", buf);
 
+}
+
+void builtin_setenv(char **arguments)
+{
+	if(arguments[1] == NULL)
+		printError();
+	if(arguments[3] != NULL)
+		printError();
+	const char* temp_const_one	= arguments[1];
+	const char* temp_const_two	= arguments[2];
+	setenv(temp_const_one, temp_const_two, 1);
+}
+
+void builtin_unsetenv(char **arguments)
+{
+	if(arguments[1] == NULL)
+		printError();
+	int i = 1;
+	while(arguments[i])
+	{
+		const char* temp_const = arguments[i];
+		unsetenv(temp_const);
+		i++;
+	}
+}
+
+void builtin_jobs(char **arguments)
+{
+	int i,j=0;
+	for(i=0;i<32768;i++)
+	{
+		if(bg_processes[bg_order[i]])
+			printf("[%d] %s [%d]\n",1+j++,bg_processes[bg_order[i]],bg_order[i]);
+	}
+}
+
+void builtin_overkill(char **arguments)
+{
+	int i;
+	union sigval sval;
+  sval.sival_int = 1;
+  for (i = 0; i < 32768; i++)
+	  	if (bg_processes[bg_order[i]])
+			    sigqueue(bg_order[i], SIGKILL, sval);
+}
+
+void builtin_fg(char **arguments)
+{
+	if(arguments[1] == NULL)
+		printError();
+	int cnt = atoi(arguments[1]);
+	int pid, status, wpid;
+	int i,j=0;
+	for(i=0;i<32768;i++)
+	{
+		if(bg_processes[bg_order[i]])
+			j++;
+		if(j==cnt)
+		{
+			pid = bg_order[i];
+			break;
+		}
+	}
+	if(pid==-1)
+	 	printError();
+	free(bg_processes[pid]);
+	bg_processes[pid] = NULL;
+	do
+	{
+	   wpid = waitpid(pid, &status, WUNTRACED);
+	}
+	while (!(WIFEXITED(status) || WIFSIGNALED(status)));
 }
